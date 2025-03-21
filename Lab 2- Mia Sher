@@ -1,0 +1,31 @@
+
+print('Welcome to Simple ATM Simulator!')
+print()
+print('Menu:\n1. Check Balance\n2. Deposit Money\n3. Withdraw Money\n4. Exit')
+print()
+choice= int(input('Enter your choice:'))
+
+current_balance= 1000.00
+
+while choice !=4: 
+    if choice ==1: 
+        print('Your current balance is: $',(f'{current_balance:.2f}'))
+        choice= int(input('Enter your choice:'))
+    elif choice ==2: 
+        deposit= float(input('Enter the amount to deposit: $'))
+        current_balance = current_balance + deposit
+        print('Deposit successful! Your new balance is: $',(f'{current_balance:.2f}'))
+        choice= int(input('Enter your choice:'))
+    elif choice ==3:
+        withdraw= float(input('Enter the amount to withdraw: $'))
+        if withdraw <= current_balance:
+            current_balance = current_balance - withdraw
+            print('Withdrawal successful! Your new balance is: $',(f'{current_balance:.2f}'))
+            choice= int(input('Enter your choice:'))
+        else: 
+            print('Insufficient funds.')
+            print('Withdrawal successful! Your new balance is: $',(f'{current_balance:.2f}'))
+            choice= int(input('Enter your choice:'))
+    else:
+        choice= int(input('Enter your choice:'))
+print('Thank you for using the ATM. Goodbye!')
