@@ -2,7 +2,6 @@ import pygame
 import random
 import sys
 
-# Initialize
 pygame.init()
 WIDTH, HEIGHT = 600, 600
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -10,16 +9,13 @@ pygame.display.set_caption("Flappy Fish")
 CLOCK = pygame.time.Clock()
 FONT = pygame.font.SysFont("Arial", 30)
 
-# Load background
 BACKGROUND = pygame.image.load("background.png")
 BACKGROUND = pygame.transform.scale(BACKGROUND, (WIDTH, HEIGHT))
 
-# Load pipe image (seaweed/coral)
-PIPE_IMG = pygame.image.load("pipe.png")
-PIPE_WIDTH, PIPE_HEIGHT = 80, 250
+PIPE_IMG = pygame.image.load("waterPlant2.png")
+PIPE_WIDTH, PIPE_HEIGHT = 200, 300
 PIPE_IMG = pygame.transform.scale(PIPE_IMG, (PIPE_WIDTH, PIPE_HEIGHT))
 
-# Load characters
 CHARACTERS = {
     "Fish #1": pygame.image.load("fish1.png"),
     "Fish #2": pygame.image.load("fish2.png"),
@@ -29,11 +25,62 @@ CHARACTERS = {
 for key in CHARACTERS:
     CHARACTERS[key] = pygame.transform.scale(CHARACTERS[key], (50, 50))
 
-# Constants
-PIPE_GAP = 200  # space between top and bottom pipe
-PIPE_SPACING = 320  # distance between pipe pairs
+SHARK_IMG = pygame.image.load("shark.png")
+SHARK_IMG = pygame.transform.scale(SHARK_IMG, (120, 80))
+
+STARFISH_FRAMES = [
+    pygame.image.load("starfish1.png"),
+    pygame.image.load("starfish2.png"),
+    pygame.image.load("starfish3.png"),
+    pygame.image.load("starfish4.png")
+]
+for i in range(len(STARFISH_FRAMES)):
+    STARFISH_FRAMES[i] = pygame.transform.scale(STARFISH_FRAMES[i], (40, 40))
+
+PIPE_GAP = 200
+PIPE_SPACING = 320
 GRAVITY = 0.3
 JUMP_STRENGTH = -7
+PIPE_SPEED = 3
+
+background_sound = pygame.mixer.Sound("background.mp3")
+starfish_sound = pygame.mixer.Sound("starfish.mp3")
+levelup_sound = pygame.mixer.Sound("levelup.mp3")
+lifeused_sound = pygame.mixer.Sound("lifeused.mp3")
+gotlife_sound = pygame.mixer.Sound("gotlife.mp3")
+
+background_sound.play(loops=-1, fade_ms=2000)
+
+def title_screen():
+    frame_idx = 0
+    while True:
+        CLOCK.tick(10)
+        SCREEN.blit(BACKGROUND, (0, 0))
+
+        title_text = FONT.render("Flappy Fish", True, (255, 255, 255))
+        by_mia_text = FONT.render("By Mia", True, (255, 255, 255))
+        continue_text = FONT.render("Press any key to continue", True, (255, 255, 255))
+
+        title_x = WIDTH // 2 - title_text.get_width() // 2
+        title_y = HEIGHT // 2 - 100
+        SCREEN.blit(title_text, (title_x, title_y))
+        SCREEN.blit(by_mia_text, (WIDTH // 2 - by_mia_text.get_width() // 2, title_y + 50))
+        SCREEN.blit(continue_text, (WIDTH // 2 - continue_text.get_width() // 2, title_y + 120))
+
+        starfish_frame = STARFISH_FRAMES[frame_idx % len(STARFISH_FRAMES)]
+        SCREEN.blit(starfish_frame, (title_x - 60, title_y))
+        SCREEN.blit(starfish_frame, (title_x + title_text.get_width() + 20, title_y))
+
+        frame_idx += 1
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                return
 
 def select_character():
     selected = None
@@ -50,7 +97,8 @@ def select_character():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
+                pygame.quit()
+                sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = pygame.mouse.get_pos()
                 for i, (name, img) in enumerate(CHARACTERS.items()):
@@ -64,49 +112,165 @@ def select_character():
 
 def draw_pipe(pipe_rect, flip=False):
     pipe_img = pygame.transform.flip(PIPE_IMG, False, True) if flip else PIPE_IMG
-    SCREEN.blit(pipe_img, (pipe_rect.x, pipe_rect.y if not flip else pipe_rect.bottom - PIPE_HEIGHT))
+    y_pos = pipe_rect.y if not flip else pipe_rect.bottom - PIPE_HEIGHT
+    SCREEN.blit(pipe_img, (pipe_rect.x, y_pos))
 
-def game_over_menu(score):
+def instructions_screen():
+    while True:
+        SCREEN.blit(BACKGROUND, (0, 0))
+        title = FONT.render("Instructions", True, (255, 255, 255))
+        info1 = FONT.render("Press SPACE to swim up!", True, (255, 255, 255))
+        info2 = FONT.render("Avoid the plants and shark!", True, (255, 255, 255))
+        info3 = FONT.render("Collect 20 magic starfish", True, (255, 255, 255))
+        info4 = FONT.render("to get an extra life!", True, (255, 255, 255))
+        back_msg = FONT.render("Press B to go back to Menu", True, (255, 255, 255))
+
+        SCREEN.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
+        SCREEN.blit(info1, (WIDTH // 2 - info1.get_width() // 2, 200))
+        SCREEN.blit(info2, (WIDTH // 2 - info2.get_width() // 2, 250))
+        SCREEN.blit(info3, (WIDTH // 2 - info3.get_width() // 2, 300))
+        SCREEN.blit(info4, (WIDTH // 2 - info4.get_width() // 2, 350))
+        SCREEN.blit(back_msg, (WIDTH // 2 - back_msg.get_width() // 2, 400))
+
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_b:
+                    return
+
+def main_menu():
+    while True:
+        SCREEN.blit(BACKGROUND, (0, 0))
+        title = FONT.render("Flappy Fish", True, (255, 255, 255))
+        play = FONT.render("Start Game", True, (255, 255, 255))
+        instructions = FONT.render("Instructions", True, (255, 255, 255))
+        quit_game = FONT.render("Quit", True, (255, 255, 255))
+
+        title_rect = title.get_rect(center=(WIDTH // 2, 100))
+        play_rect = play.get_rect(center=(WIDTH // 2, 250))
+        instructions_rect = instructions.get_rect(center=(WIDTH // 2, 300))
+        quit_rect = quit_game.get_rect(center=(WIDTH // 2, 350))
+
+        SCREEN.blit(title, title_rect)
+        SCREEN.blit(play, play_rect)
+        SCREEN.blit(instructions, instructions_rect)
+        SCREEN.blit(quit_game, quit_rect)
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    selected_img = select_character()
+                    main(selected_img)
+                elif event.key == pygame.K_2:
+                    instructions_screen()
+                elif event.key == pygame.K_3:
+                    pygame.quit()
+                    sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = pygame.mouse.get_pos()
+                if play_rect.collidepoint(mx, my):
+                    selected_img = select_character()
+                    main(selected_img)
+                elif instructions_rect.collidepoint(mx, my):
+                    instructions_screen()
+                elif quit_rect.collidepoint(mx, my):
+                    pygame.quit()
+                    sys.exit()
+
+
+def game_over_menu(score, level, collected_starfish):
     while True:
         SCREEN.blit(BACKGROUND, (0, 0))
         msg = FONT.render(f"Game Over! Score: {score}", True, (255, 255, 255))
+        level_msg = FONT.render(f"You reached Level {level}", True, (255, 255, 255))
+        starfish_msg = FONT.render(f"Starfish Collected: {collected_starfish}", True, (255, 255, 0))
         restart = FONT.render("Press R to Restart", True, (255, 255, 255))
+        menu = FONT.render("Press M for Main Menu", True, (255, 255, 255))
+        quit_msg = FONT.render("Press Q to Quit", True, (255, 255, 255))
+
+        SCREEN.blit(msg, (WIDTH // 2 - msg.get_width() // 2, 150))
+        SCREEN.blit(level_msg, (WIDTH // 2 - level_msg.get_width() // 2, 190))
+        SCREEN.blit(starfish_msg, (WIDTH // 2 - starfish_msg.get_width() // 2, 230))
+        SCREEN.blit(restart, (WIDTH // 2 - restart.get_width() // 2, 280))
+        SCREEN.blit(menu, (WIDTH // 2 - menu.get_width() // 2, 320))
+        SCREEN.blit(quit_msg, (WIDTH // 2 - quit_msg.get_width() // 2, 360))
+
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    return "restart"
+                elif event.key == pygame.K_m:
+                    return "menu"
+                elif event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+
+def level_up_menu(level):
+    while True:
+        SCREEN.blit(BACKGROUND, (0, 0))
+        msg = FONT.render(f"Move on to Level {level}!", True, (255, 255, 255))
+        continue_msg = FONT.render("Press C to Continue", True, (255, 255, 255))
         quit_msg = FONT.render("Press Q to Quit", True, (255, 255, 255))
 
         SCREEN.blit(msg, (WIDTH // 2 - msg.get_width() // 2, 200))
-        SCREEN.blit(restart, (WIDTH // 2 - restart.get_width() // 2, 260))
+        SCREEN.blit(continue_msg, (WIDTH // 2 - continue_msg.get_width() // 2, 260))
         SCREEN.blit(quit_msg, (WIDTH // 2 - quit_msg.get_width() // 2, 300))
 
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
+                pygame.quit()
+                sys.exit()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
+                if event.key == pygame.K_c:
                     return True
                 elif event.key == pygame.K_q:
-                    pygame.quit(); sys.exit()
+                    pygame.quit()
+                    sys.exit()
 
-def spawn_pipe():
-    # Create the top pipe
-    top_height = random.randint(90, HEIGHT - PIPE_GAP - 90)
-    top = pygame.Rect(WIDTH, 0, PIPE_WIDTH, top_height)
-
-    # Create the bottom pipe
-    bottom_y = top_height + PIPE_GAP
-    bottom_height = HEIGHT - bottom_y + 50 
-    bottom = pygame.Rect(WIDTH, bottom_y, PIPE_WIDTH, bottom_height)
-
+def spawn_pipe(pipe_gap):
+    top_height = random.randint(90, HEIGHT - pipe_gap - 150)
+    top = pygame.Rect(WIDTH, -PIPE_HEIGHT + top_height, PIPE_WIDTH, PIPE_HEIGHT)
+    bottom_y = top_height + pipe_gap + 50
+    bottom = pygame.Rect(WIDTH, bottom_y, PIPE_WIDTH, PIPE_HEIGHT)
     return top, bottom
 
 def main(character_img):
-    x, y = 100, HEIGHT // 2
+    global PIPE_SPEED
+
+    x = WIDTH // 2 - 25
+    y = HEIGHT // 2
     vel = 0
     score = 0
+    level = 1
     pipes = []
+    shark_x = 50
+    shark_y = HEIGHT // 2
 
-    pipes.extend(spawn_pipe())
+    pipe_gap = PIPE_GAP
+    pipes.extend(spawn_pipe(pipe_gap))
     running = True
+    collided = False
+
+    PIPE_SPEED = 3
+
+    starfishes = []
+    starfish_timer = 0
+    collected_starfish = 0
+    lives = 1
+    score_to_next_level = 15
 
     while running:
         CLOCK.tick(60)
@@ -114,49 +278,133 @@ def main(character_img):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                pygame.quit()
+                sys.exit()
+            if not collided and event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 vel = JUMP_STRENGTH
 
-        vel += GRAVITY
-        y += vel
+        if not collided:
+            vel += GRAVITY
+            y += vel
 
-        for i in range(len(pipes)):
-            pipes[i].x -= 3
+            for i in range(len(pipes)):
+                pipes[i].x -= PIPE_SPEED
 
-        if pipes[-1].x < WIDTH - PIPE_SPACING:
-            pipes.extend(spawn_pipe())
+            if pipes[-1].x < WIDTH - PIPE_SPACING:
+                pipes.extend(spawn_pipe(pipe_gap))
 
-        if pipes[0].x < -PIPE_WIDTH:
-            pipes.pop(0)
-            pipes.pop(0)
-            score += 1
+            if pipes[0].x < -PIPE_WIDTH:
+                pipes.pop(0)
+                pipes.pop(0)
+                score += 1
 
-        # Draw pipes
+            if score >= score_to_next_level:
+                level += 1
+                levelup_sound.play()
+                level_up_menu(level)
+                pipe_gap = max(100, pipe_gap - 30)
+                PIPE_SPEED += 1
+                score_to_next_level *= 2
+
+            if shark_y < y:
+                shark_y += min(2, y - shark_y)
+            elif shark_y > y:
+                shark_y -= min(2, shark_y - y)
+        else:
+            vel = 0
+            if shark_x < x - 30:
+                shark_x += 4
+
         for i in range(0, len(pipes), 2):
             draw_pipe(pipes[i], flip=True)
             draw_pipe(pipes[i + 1], flip=False)
 
-        # Draw character
         SCREEN.blit(character_img, (x, y))
 
-        char_hitbox = pygame.Rect(x + 15, y + 9, 20, 20)  
-        for pipe in pipes:
-            if char_hitbox.colliderect(pipe):
-                running = False
-        if y > HEIGHT or y < 0:
-            running = False
+        char_hitbox = pygame.Rect(x + 12, y + 18, 26, 22)
 
-        # Display score
+        SCREEN.blit(SHARK_IMG, (shark_x, shark_y))
+
+        for pipe in pipes:
+            shrink_amount = 120
+            pipe_hitbox = pygame.Rect(
+                pipe.x + shrink_amount // 2,
+                pipe.y + shrink_amount // 2,
+                pipe.width - shrink_amount,
+                pipe.height - shrink_amount
+            )
+            if not collided and char_hitbox.colliderect(pipe_hitbox):
+                if lives > 0:
+                    lives -= 1
+                    lifeused_sound.play()
+                    y = HEIGHT // 2
+                    collided = False
+                else:
+                    collided = True
+
+        if not collided and (y > HEIGHT or y < 0):
+            collided = True
+
+        if collided and shark_x >= x - 30:
+            pygame.time.delay(500)
+            choice = game_over_menu(score, level, collected_starfish)
+            if choice == "restart":
+                main(character_img)
+                return
+            elif choice == "menu":
+                main_menu()
+                return
+
+        starfish_timer += 1
+        if starfish_timer > 90:
+            safe_to_spawn = False
+            while not safe_to_spawn:
+                starfish_y = random.randint(100, HEIGHT - 100)
+                starfish_rect = pygame.Rect(WIDTH, starfish_y, 40, 40)
+                safe_to_spawn = True
+                for pipe in pipes:
+                    shrink_amount = 120
+                    pipe_hitbox = pygame.Rect(
+                        pipe.x + shrink_amount // 2,
+                        pipe.y + shrink_amount // 2,
+                        pipe.width - shrink_amount,
+                        pipe.height - shrink_amount
+                    )
+                    if starfish_rect.colliderect(pipe_hitbox):
+                        safe_to_spawn = False
+                        break
+            starfishes.append({'rect': starfish_rect, 'frame_idx': 0})
+            starfish_timer = 0
+
+        for starfish in starfishes:
+            starfish['rect'].x -= PIPE_SPEED
+            frame = STARFISH_FRAMES[starfish['frame_idx'] // 10 % 4]
+            SCREEN.blit(frame, (starfish['rect'].x, starfish['rect'].y))
+            starfish['frame_idx'] += 1
+
+        for starfish in starfishes[:]:
+            if char_hitbox.colliderect(starfish['rect']):
+                starfishes.remove(starfish)
+                collected_starfish += 1
+                starfish_sound.play()
+                if collected_starfish >= 20:
+                    lives += 1
+                    gotlife_sound.play()
+                    collected_starfish = 0
+
+        starfishes = [s for s in starfishes if s['rect'].x > -50]
+
         score_text = FONT.render(f"Score: {score}", True, (255, 255, 255))
+        level_text = FONT.render(f"Level: {level}", True, (255, 255, 255))
+        starfish_text = FONT.render(f"Starfish: {collected_starfish}", True, (255, 255, 0))
+        life_text = FONT.render(f"Lives: {lives}", True, (255, 0, 0))
         SCREEN.blit(score_text, (10, 10))
+        SCREEN.blit(level_text, (10, 50))
+        SCREEN.blit(starfish_text, (10, 90))
+        SCREEN.blit(life_text, (10, 130))
+
         pygame.display.flip()
 
-    restart = game_over_menu(score)
-    if restart:
-        main(character_img)
-
-# Start game
 if __name__ == "__main__":
-    selected_img = select_character()
-    main(selected_img)
+    title_screen()
+    main_menu()
